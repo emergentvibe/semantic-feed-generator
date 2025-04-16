@@ -50,7 +50,7 @@ const noisyKeywordsWithContext = {
     'meme', 'memetic', 'cultural', 'transmission', 'evolution', 
     'replicator', 'social learning'
   ],
-  social learning: [
+  'social learning': [
     'meme', 'memetic', 'cultural', 'transmission', 'evolution', 
     'replicator', 'imitation'
   ],
