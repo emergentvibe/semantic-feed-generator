@@ -6,11 +6,11 @@ import { DatabaseSchema } from '../db/schema'
 // max 15 chars
 export const shortname = 'memetics'
 
-// Lowercase keywords for case-insensitive matching
-const cleanKeywords = [
+// Reverted to the simpler list for diagnosing performance
+const keywords = [
   'memetics',
   'mimetics',
-  'memetic', // Note: Adding 'meme' below with context check
+  'memetic',
   'memeplex',
   'meme theory',
   'unit of culture',
@@ -26,35 +26,12 @@ const cleanKeywords = [
   'Universal Darwinism',
   'mneme',
   'mnemetics',
-  'Susan Blackmore', // Specific enough
+  'Susan Blackmore',
   'Darwin\'s Dangerous Idea',
   'The Meme Machine',
 ].map(k => k.toLowerCase())
 
-const noisyKeywordsWithContext = {
-  meme: [
-    'theory', 'science', 'evolution', 'cultural', 'transmission', 
-    'replicator', 'memetic', 'memetics', 'cognitive', 'philosophy', 
-    'blackmore', 'dennett', 'dawkins'
-  ],
-  replicator: [
-    'meme', 'memetic', 'cultural', 'social', 'information'
-  ],
-  dawkins: [
-    'meme', 'memetic', 'memetics', 'cultural evolution', 'replicator'
-  ],
-  dennett: [
-    'meme', 'memetic', 'memetics', 'cultural evolution', 'replicator'
-  ],
-  imitation: [
-    'meme', 'memetic', 'cultural', 'transmission', 'evolution', 
-    'replicator', 'social learning'
-  ],
-  'social learning': [
-    'meme', 'memetic', 'cultural', 'transmission', 'evolution', 
-    'replicator', 'imitation'
-  ],
-}
+// Removed noisyKeywordsWithContext for now
 
 const lower = (col: string) => sql<string>`lower(${sql.ref(col)})`
 
@@ -64,36 +41,12 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     let builder = ctx.db
       .selectFrom('post')
       .selectAll()
-      .where((eb) => {
-        // Define the type for our conditions array
-        const conditions: Expression<SqlBool>[] = []
-
-        // Add simple checks for clean keywords
-        for (const keyword of cleanKeywords) {
-          conditions.push(eb(lower('post.text'), 'like', `%${keyword}%`))
-        }
-
-        // Add complex checks for noisy keywords with context
-        for (const noisyKeyword in noisyKeywordsWithContext) {
-          const contextKeywords = noisyKeywordsWithContext[noisyKeyword]
-          
-          const contextOrGroup = eb.or(
-            contextKeywords.map(ctxKeyword => 
-              eb(lower('post.text'), 'like', `%${ctxKeyword}%`)
-            )
-          )
-
-          conditions.push(
-            eb.and([
-              eb(lower('post.text'), 'like', `%${noisyKeyword}%`),
-              contextOrGroup
-            ])
-          )
-        }
-
-        // Combine all conditions with OR
-        return eb.or(conditions)
-      })
+      // Reverted to simple OR query
+      .where((eb) => eb.or(
+        keywords.map(keyword => 
+          eb(lower('post.text'), 'like', `%${keyword}%`)
+        )
+      ))
       .orderBy('indexedAt', 'desc')
       .orderBy('cid', 'desc')
       .limit(params.limit)
