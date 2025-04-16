@@ -7,18 +7,24 @@ app = 'semantic-feed-generator'
 primary_region = 'lhr'
 
 [build]
+# No specific builder needed usually, Node buildpack should detect package.json
+# It should automatically run "yarn build" if defined in package.json scripts
 
 [[mounts]]
   source = 'data'
   destination = '/data'
 
+# Define the command for the default 'app' process
+[processes]
+  app = 'yarn start:prod'
+
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = 'stop'
+  auto_stop_machines = 'stop' # Consider changing to 'off' or 'idle' for a feed generator
   auto_start_machines = true
-  min_machines_running = 0
-  processes = ['app']
+  min_machines_running = 0 # Consider changing to 1 for faster feed responses
+  processes = ['app'] # Tells http_service to use the 'app' process defined above
 
 [[vm]]
   memory = '1gb'

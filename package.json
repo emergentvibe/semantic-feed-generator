@@ -7,10 +7,12 @@
   "author": "dholms <dtholmgren@gmail.com>",
   "license": "MIT",
   "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "start:prod": "node dist/index.js",
     "publishFeed": "ts-node scripts/publishFeedGen.ts",
     "unpublishFeed": "ts-node scripts/unpublishFeedGen.ts",
-    "start": "ts-node src/index.ts",
-    "build": "tsc"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@atproto/api": "^0.13.28",
