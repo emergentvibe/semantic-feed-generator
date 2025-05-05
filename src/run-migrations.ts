@@ -19,18 +19,28 @@ const run = async () => {
     await migrateToLatest(db);
     console.log('Migrations completed successfully.');
 
+    // --- DIAGNOSTIC: Check original post table count ---
+    console.log('Checking ORIGINAL post table count...');
+    const postCountResult = await db.selectFrom('post').select(db.fn.count('uri').as('count')).executeTakeFirst();
+    const postCount = Number(postCountResult?.count ?? 0);
+    console.log(`ORIGINAL post table count: ${postCount} entries.`);
+    // --- END DIAGNOSTIC ---
+
     // Check initial FTS count
     console.log('Checking INITIAL FTS table count...');
     const initialFtsCountResult = await db.selectFrom('post_fts' as any).select(db.fn.count('uri').as('count')).executeTakeFirst();
     const initialFtsCount = Number(initialFtsCountResult?.count ?? 0);
     console.log(`INITIAL FTS table count: ${initialFtsCount} entries.`);
 
-    if (initialFtsCount === 0) {
+    // Only attempt population if the post table has data AND FTS is empty
+    if (postCount > 0 && initialFtsCount === 0) {
       console.log('Populating FTS table from existing posts...');
       await sql`INSERT INTO post_fts (rowid, uri, text) SELECT rowid, uri, text FROM post;`.execute(db);
       console.log('FTS table populated.');
-    } else {
+    } else if (initialFtsCount > 0) {
       console.log('FTS table already populated, skipping initial population.');
+    } else { // postCount === 0
+      console.log('Original post table is empty, skipping FTS population.');
     }
 
     // --- DIAGNOSTIC QUERIES START ---
