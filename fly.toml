@@ -27,7 +27,7 @@ primary_region = 'lhr'
   force_https = true
   auto_stop_machines = 'stop' # Consider changing to 'off' or 'idle' for a feed generator
   auto_start_machines = true
-  min_machines_running = 0 # Consider changing to 1 for faster feed responses
+  min_machines_running = 1 # Ensures at least one machine stays running for the subscription
   processes = ['app'] # Tells http_service to use the 'app' process defined above
 
 [[vm]]

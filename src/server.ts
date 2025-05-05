@@ -9,6 +9,7 @@ import { createDb, Database, migrateToLatest } from './db'
 import { FirehoseSubscription } from './subscription'
 import { AppContext, Config } from './config'
 import wellKnown from './well-known'
+import { sql } from 'kysely'
 
 export class FeedGenerator {
   public app: express.Application
@@ -63,6 +64,19 @@ export class FeedGenerator {
 
   async start(): Promise<http.Server> {
     await migrateToLatest(this.db)
+
+    try {
+      console.log('[STARTUP_DIAG] Checking post table count...');
+      const postCountResult = await this.db
+                                    .selectFrom('post')
+                                    .select(this.db.fn.count<number>('uri').as('count'))
+                                    .executeTakeFirst();
+      const postCount = postCountResult ? postCountResult.count : 0; 
+      console.log(`[STARTUP_DIAG] Current post table count: ${postCount}`);
+    } catch (err) {
+      console.error('[STARTUP_DIAG] Error checking post table count:', err);
+    }
+
     this.firehose.run(this.cfg.subscriptionReconnectDelay)
     this.server = this.app.listen(this.cfg.port, this.cfg.listenhost)
     await events.once(this.server, 'listening')
