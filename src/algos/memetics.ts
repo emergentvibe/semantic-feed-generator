@@ -30,14 +30,18 @@ const keywords = [
 export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
   console.log(`[${shortname}] Handler invoked. Params:`, params)
   try {
+    // Construct the FTS MATCH query string
+    // Escape single quotes AND wrap each term/phrase in double quotes
     const ftsQuery = keywords
-      .map(k => k.replace(/'/g, "''"))
+      .map(k => k.replace(/'/g, "''"))   // Escape single quotes for SQL
+      .map(k => `"${k}"`)             // Wrap in double quotes for FTS5 phrase search
       .join(' OR ');
     
     console.log(`[${shortname}] FTS Query: ${ftsQuery}`)
 
     // Step 1: Find matching URIs using FTS via raw SQL execution
     console.log(`[${shortname}] Executing FTS query...`)
+    // Embed the parameter directly; Kysely handles binding
     const ftsResult = await sql<{ uri: string }>` 
       SELECT uri FROM post_fts WHERE post_fts.text MATCH ${ftsQuery}
     `.execute(ctx.db);
