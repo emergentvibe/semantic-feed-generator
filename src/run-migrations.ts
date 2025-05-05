@@ -20,10 +20,10 @@ const run = async () => {
     console.log('Migrations completed successfully.');
 
     // --- DIAGNOSTIC: Check original post table count ---
-    console.log('Checking ORIGINAL post table count...');
+    console.log('(DIAG) Checking ORIGINAL post table count...');
     const postCountResult = await db.selectFrom('post').select(db.fn.count('uri').as('count')).executeTakeFirst();
-    const postCount = Number(postCountResult?.count ?? 0);
-    console.log(`ORIGINAL post table count: ${postCount} entries.`);
+    const postCount = Number(postCountResult?.count ?? -1); // Use -1 to indicate potential error during check
+    console.log(`(DIAG) ORIGINAL post table count reported during migration: ${postCount} entries.`);
     // --- END DIAGNOSTIC ---
 
     // Check initial FTS count
@@ -32,16 +32,23 @@ const run = async () => {
     const initialFtsCount = Number(initialFtsCountResult?.count ?? 0);
     console.log(`INITIAL FTS table count: ${initialFtsCount} entries.`);
 
-    // Only attempt population if the post table has data AND FTS is empty
-    if (postCount > 0 && initialFtsCount === 0) {
-      console.log('Populating FTS table from existing posts...');
-      await sql`INSERT INTO post_fts (rowid, uri, text) SELECT rowid, uri, text FROM post;`.execute(db);
-      console.log('FTS table populated.');
-    } else if (initialFtsCount > 0) {
-      console.log('FTS table already populated, skipping initial population.');
-    } else { // postCount === 0
-      console.log('Original post table is empty, skipping FTS population.');
+    // --- MODIFIED POPULATION LOGIC ---
+    // Always attempt to populate if the FTS table is empty, 
+    // trusting that the main 'post' table *should* have data even if the count check failed.
+    if (initialFtsCount === 0) {
+      console.log('FTS table is empty. Attempting population from existing posts...');
+      try {
+        // Using raw SQL for the population as it's simpler here
+        await sql`INSERT INTO post_fts (rowid, uri, text) SELECT rowid, uri, text FROM post;`.execute(db);
+        console.log('FTS table population command executed.');
+      } catch (popErr) {
+        console.error('Error during FTS population attempt:', popErr);
+        // Don't necessarily exit(1), allow diagnostics to run, but log the error
+      }
+    } else {
+      console.log('FTS table already populated, skipping population attempt.');
     }
+    // --- END MODIFIED POPULATION LOGIC ---
 
     // --- DIAGNOSTIC QUERIES START ---
     console.log('--- Running Diagnostic Queries ---');
@@ -81,7 +88,7 @@ const run = async () => {
     console.log('--- Diagnostic Queries End ---');
     // --- DIAGNOSTIC QUERIES END ---
 
-    process.exit(0); // Success
+    process.exit(0); // Success (even if population had error, log shows it)
   } catch (err) {
     console.error('Migration/Diagnostic failed:', err);
     process.exit(1); // Failure
