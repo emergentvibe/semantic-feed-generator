@@ -6,6 +6,7 @@ import { DatabaseSchema } from '../db/schema'
 // max 15 chars
 export const shortname = 'memetics'
 
+// Drastically simplified keyword list for debugging hang issue
 const keywords = [
   'memetics',
   'memetic',
@@ -20,13 +21,8 @@ const keywords = [
   'memetic replicator',
   'cultural replicator',
   'cultural transmission',
-  'viruses of the mind',
-  'virus of the mind',
   'mind virus',
-  'universal darwinism',
-  'susan blackmore',
-  'darwin\'s dangerous idea',
-  'the meme machine',
+  'universal darwinism'
 ].map(k => k.toLowerCase())
 
 // Removed noisyKeywordsWithContext for now
@@ -39,7 +35,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     let builder = ctx.db
       .selectFrom('post')
       .selectAll()
-      // Reverted to simple OR query
+      // Query using the simplified keywords list
       .where((eb) => eb.or(
         keywords.map(keyword => 
           eb(lower('post.text'), 'like', `%${keyword}%`)
