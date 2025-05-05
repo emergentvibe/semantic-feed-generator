@@ -59,24 +59,42 @@ const run = async () => {
     const finalFtsCount = Number(finalFtsCountResult?.count ?? 0);
     console.log(`FINAL FTS table count: ${finalFtsCount} entries.`);
 
-    // Test a specific keyword match count
-    const testKeyword = 'memetics'; // Choose a keyword you expect to find
-    const testQuery = `"${testKeyword.replace(/'/g, "''")}"`;
-    console.log(`Testing FTS MATCH count for keyword: ${testQuery}`);
-    const matchCountResult = await sql<{ count: number | string }>`SELECT count(*) as count FROM post_fts WHERE text MATCH ${testQuery}`.execute(db);
-    console.log(`MATCH count result: ${JSON.stringify(matchCountResult.rows)}`); // Log the raw result
-    const matchCount = Number(matchCountResult.rows?.[0]?.count ?? 0);
-    console.log(`MATCH count for ${testQuery}: ${matchCount} entries.`);
+    // Test MATCH count for a few specific keywords individually
+    const keywordsToTest = [
+      'memetics', 
+      'memetic',
+      'meme theory', 
+      'unit of culture',
+      'cultural evolution'
+    ]; // Define test keywords directly
+    console.log(`Testing FTS MATCH for keywords: ${JSON.stringify(keywordsToTest)}`);
+    
+    let firstKeywordMatchCount = 0; // Keep track if the first one matched
+    for (let i = 0; i < keywordsToTest.length; i++) {
+      const keyword = keywordsToTest[i];
+      const testQuery = `"${keyword.replace(/'/g, "''")}"`;
+      try {
+        const matchCountResult = await sql<{ count: number | string }>`SELECT count(*) as count FROM post_fts WHERE text MATCH ${testQuery}`.execute(db);
+        const matchCount = Number(matchCountResult.rows?.[0]?.count ?? -1);
+        console.log(`  -> MATCH count for ${testQuery}: ${matchCount} entries.`);
+        if (i === 0) { // Check if it's the first keyword
+          firstKeywordMatchCount = matchCount;
+        }
+      } catch (matchErr) {
+         console.error(`  -> Error testing MATCH for ${testQuery}:`, matchErr);
+      }
+    }
 
-    // Select some matching rows (if any)
-    if (matchCount > 0) {
-      console.log(`Selecting sample rows matching ${testQuery}...`);
+    // Select some matching rows for the *first* keyword if it had matches
+    const firstKeywordTestQuery = `"${keywordsToTest[0].replace(/'/g, "''")}"`;
+    if (firstKeywordMatchCount > 0) {
+      console.log(`Selecting sample rows matching ${firstKeywordTestQuery}...`);
       const sampleRowsResult = await sql<{ uri: string; text: string }>`
-        SELECT uri, text FROM post_fts WHERE text MATCH ${testQuery} LIMIT 5
+        SELECT uri, text FROM post_fts WHERE text MATCH ${firstKeywordTestQuery} LIMIT 3
       `.execute(db);
       console.log(`Sample matching rows: ${JSON.stringify(sampleRowsResult.rows, null, 2)}`);
     } else {
-      console.log(`No rows found matching ${testQuery}, skipping sample selection.`);
+      console.log(`No rows found matching ${firstKeywordTestQuery}, skipping sample selection.`);
     }
     
     // Compare with LIKE on original table (optional, can be slow)
