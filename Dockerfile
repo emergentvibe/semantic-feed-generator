@@ -39,6 +39,9 @@ RUN yarn install --production=true
 # Final stage for app image
 FROM base
 
+# Install sqlite3 CLI tool for debugging
+RUN apt-get update && apt-get install -y sqlite3 && rm -rf /var/lib/apt/lists/*
+
 # Copy built application
 COPY --from=build /app /app
 
