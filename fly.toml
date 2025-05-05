@@ -10,6 +10,10 @@ primary_region = 'lhr'
 # No specific builder needed usually, Node buildpack should detect package.json
 # It should automatically run "yarn build" if defined in package.json scripts
 
+# Add deploy section for release command
+[deploy]
+  release_command = "yarn migrate"
+
 [[mounts]]
   source = 'data'
   destination = '/data'

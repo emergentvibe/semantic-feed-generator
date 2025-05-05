@@ -10,6 +10,7 @@
     "start": "ts-node src/index.ts",
     "build": "tsc",
     "start:prod": "node dist/index.js",
+    "migrate": "node dist/run-migrations.js",
     "publishFeed": "ts-node scripts/publishFeedGen.ts",
     "unpublishFeed": "ts-node scripts/unpublishFeedGen.ts",
     "test": "echo \"Error: no test specified\" && exit 1"

@@ -1,7 +1,7 @@
 import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../config'
-import { sql, Expression, SqlBool } from 'kysely'
-import { DatabaseSchema } from '../db/schema'
+import { sql } from 'kysely'
+import { DatabaseSchema, Post } from '../db/schema'
 
 // max 15 chars
 export const shortname = 'memetics'
@@ -27,22 +27,37 @@ const keywords = [
 
 // Removed noisyKeywordsWithContext for now
 
-const lower = (col: string) => sql<string>`lower(${sql.ref(col)})`
-
 export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
   console.log(`[${shortname}] Handler invoked. Params:`, params)
   try {
+    const ftsQuery = keywords
+      .map(k => k.replace(/'/g, "''"))
+      .join(' OR ');
+    
+    console.log(`[${shortname}] FTS Query: ${ftsQuery}`)
+
+    // Step 1: Find matching URIs using FTS via raw SQL execution
+    console.log(`[${shortname}] Executing FTS query...`)
+    const ftsResult = await sql<{ uri: string }>` 
+      SELECT uri FROM post_fts WHERE post_fts.text MATCH ${ftsQuery}
+    `.execute(ctx.db);
+
+    // Assuming execute() result has a 'rows' property
+    const uris = ftsResult.rows.map(row => row.uri);
+    console.log(`[${shortname}] FTS query returned ${uris.length} matching URIs.`)
+
+    if (uris.length === 0) {
+      console.log(`[${shortname}] No matching posts found.`)
+      return { cursor: undefined, feed: [] };
+    }
+
+    // Step 2: Build the main query using the found URIs
     let builder = ctx.db
       .selectFrom('post')
-      .selectAll()
-      // Query using the simplified keywords list
-      .where((eb) => eb.or(
-        keywords.map(keyword => 
-          eb(lower('post.text'), 'like', `%${keyword}%`)
-        )
-      ))
-      .orderBy('indexedAt', 'desc')
-      .orderBy('cid', 'desc')
+      .selectAll('post')
+      .where('post.uri', 'in', uris)
+      .orderBy('post.indexedAt', 'desc')
+      .orderBy('post.cid', 'desc')
       .limit(params.limit)
 
     if (params.cursor) {
@@ -51,9 +66,9 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
       builder = builder.where('post.indexedAt', '<', indexedAt)
     }
 
-    console.log(`[${shortname}] Executing query...`)
+    console.log(`[${shortname}] Executing final query for ${uris.length} potential posts...`)
     const res = await builder.execute()
-    console.log(`[${shortname}] Query returned ${res.length} results.`)
+    console.log(`[${shortname}] Final query returned ${res.length} results.`)
 
     const feed = res.map((row) => ({
       post: row.uri,
@@ -68,7 +83,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
       console.log(`[${shortname}] No last post found, cursor undefined.`)
     }
 
-    console.log(`[${shortname}] Returning feed.`)    
+    console.log(`[${shortname}] Returning feed.`)
     return {
       cursor,
       feed,
