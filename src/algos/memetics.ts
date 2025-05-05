@@ -6,10 +6,8 @@ import { DatabaseSchema } from '../db/schema'
 // max 15 chars
 export const shortname = 'memetics'
 
-// Reverted to the simpler list for diagnosing performance
 const keywords = [
   'memetics',
-  'mimetics',
   'memetic',
   'memeplex',
   'meme theory',
@@ -23,12 +21,12 @@ const keywords = [
   'cultural replicator',
   'cultural transmission',
   'viruses of the mind',
-  'Universal Darwinism',
-  'mneme',
-  'mnemetics',
-  'Susan Blackmore',
-  'Darwin\'s Dangerous Idea',
-  'The Meme Machine',
+  'virus of the mind',
+  'mind virus',
+  'universal darwinism',
+  'susan blackmore',
+  'darwin\'s dangerous idea',
+  'the meme machine',
 ].map(k => k.toLowerCase())
 
 // Removed noisyKeywordsWithContext for now
