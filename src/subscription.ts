@@ -3,6 +3,24 @@ import {
   isCommit,
 } from './lexicon/types/com/atproto/sync/subscribeRepos'
 import { FirehoseSubscriptionBase, getOpsByType } from './util/subscription'
+// Define keywords directly to avoid import issues
+const keywords = [
+  'memetics',
+  'memetic',
+  'memeplex',
+  'meme theory',
+  'unit of culture',
+  'egregore',
+  'cultural evolution',
+  'gene-culture coevolution',
+  'dual inheritance theory',
+  'thought contagion',
+  'memetic replicator',
+  'cultural replicator',
+  'cultural transmission',
+  'mind virus',
+  'universal darwinism'
+].map(k => k.toLowerCase());
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
@@ -18,17 +36,25 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     }
 
     const postsToDelete = ops.posts.deletes.map((del) => del.uri)
+    
+    // Filter posts *before* mapping them for creation
     const postsToCreate = ops.posts.creates
-      // .filter((create) => { // Remove the filter to index all posts
-      //   // only alf-related posts
-      //   return create.record.text.toLowerCase().includes('alf')
-      // })
+      .filter((create) => {
+        // Pre-filter: Only keep posts matching keywords
+        const postText = (create.record?.text?.toLowerCase() || '');
+        if (!postText) return false; // Skip posts with no text
+        const matchesKeywords = keywords.some(k => postText.includes(k));
+        // if (matchesKeywords) { // Optional: Log matches for debugging
+        //   console.log(`Matched Post: ${create.uri} for keywords`);
+        // }
+        return matchesKeywords;
+      })
       .map((create) => {
-        // map all posts to a db row, including text
+        // map matched posts to a db row
         return {
           uri: create.uri,
           cid: create.cid,
-          text: create.record.text as string, // Add the post text
+          text: create.record.text as string, 
           indexedAt: new Date().toISOString(),
         }
       })
@@ -40,6 +66,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
     if (postsToCreate.length > 0) {
+      console.log(`[Subscription] Inserting ${postsToCreate.length} matched posts...`); // Add log
       await this.db
         .insertInto('post')
         .values(postsToCreate)

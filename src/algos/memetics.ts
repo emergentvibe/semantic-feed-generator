@@ -7,7 +7,7 @@ import { DatabaseSchema, Post } from '../db/schema'
 export const shortname = 'memetics'
 
 // Drastically simplified keyword list for debugging hang issue
-const keywords = [
+export const keywords = [
   'memetics',
   'memetic',
   'memeplex',
@@ -26,57 +26,53 @@ const keywords = [
 
 // Removed noisyKeywordsWithContext for now
 
+// Reinstate lower function
+const lower = (col: string) => sql<string>`lower(${sql.ref(col)})`
+
 export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
   console.log(`[${shortname}] Handler invoked. Params:`, params)
   try {
-    // Construct the FTS MATCH query string
-    // Escape single quotes AND wrap each term/phrase in double quotes
-    const ftsQuery = keywords
-      .map(k => k.replace(/'/g, "''"))   // Escape single quotes for SQL
-      .map(k => `"${k}"`)             // Wrap in double quotes for FTS5 phrase search
-      .join(' OR ');
-    
-    console.log(`[${shortname}] FTS Query: ${ftsQuery}`)
+    // Remove FTS query construction
+    // const ftsQuery = ...
+    // console.log(`[${shortname}] FTS Query: ${ftsQuery}`)
 
-    // Step 1: Find matching URIs using FTS via raw SQL execution
-    console.log(`[${shortname}] Executing FTS query...`)
-    // Embed the parameter directly; Kysely handles binding
-    const ftsResult = await sql<{ uri: string }>` 
-      SELECT uri FROM post_fts WHERE post_fts.text MATCH ${ftsQuery}
-    `.execute(ctx.db);
+    // Remove Step 1 (FTS query)
+    // console.log(`[${shortname}] Executing FTS query...`)
+    // const ftsResult = ...
+    // const uris = ...
+    // console.log(`[${shortname}] FTS query returned ...`)
+    // if (uris.length === 0) ...
 
-    // Assuming execute() result has a 'rows' property
-    const uris = ftsResult.rows.map(row => row.uri);
-    console.log(`[${shortname}] FTS query returned ${uris.length} matching URIs.`)
-
-    if (uris.length === 0) {
-      console.log(`[${shortname}] No matching posts found.`)
-      return { cursor: undefined, feed: [] };
-    }
-
-    // Step 2: Build the main query using the found URIs
+    // Revert Step 2 to query 'post' directly with LIKE
     let builder = ctx.db
       .selectFrom('post')
       .selectAll('post')
-      .where('post.uri', 'in', uris)
+      // Use LIKE with lower()
+      .where((eb) => eb.or(
+        keywords.map(keyword => 
+          eb(lower('post.text'), 'like', `%${keyword}%`)
+        )
+      ))
       .orderBy('post.indexedAt', 'desc')
       .orderBy('post.cid', 'desc')
       .limit(params.limit)
 
+    // Cursor logic remains the same, applied to the main query
     if (params.cursor) {
       console.log(`[${shortname}] Applying cursor:`, params.cursor)
       const indexedAt = new Date(parseInt(params.cursor, 10)).toISOString()
       builder = builder.where('post.indexedAt', '<', indexedAt)
     }
 
-    console.log(`[${shortname}] Executing final query for ${uris.length} potential posts...`)
+    console.log(`[${shortname}] Executing LIKE query...`) // Update log message
     const res = await builder.execute()
-    console.log(`[${shortname}] Final query returned ${res.length} results.`)
+    console.log(`[${shortname}] Query returned ${res.length} results.`) // Update log message
 
     const feed = res.map((row) => ({
       post: row.uri,
     }))
 
+    // Cursor setting logic remains the same
     let cursor: string | undefined
     const last = res.at(-1)
     if (last) {
