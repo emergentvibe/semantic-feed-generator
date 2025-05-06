@@ -21,7 +21,6 @@ const keywords = [
   'memetic replicator',
   'cultural replicator',
   'cultural transmission',
-  'mind virus',
   'universal darwinism'
 ].map(k => k.toLowerCase())
 
